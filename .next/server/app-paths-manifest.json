@@ -1,4 +1,8 @@
 {
-  "/page": "app/page.js",
-  "/auth/signup/page": "app/auth/signup/page.js"
+  "/api/gemini/chat/route": "app/api/gemini/chat/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/audio-call/page": "app/dashboard/audio-call/page.js",
+  "/dashboard/chat/page": "app/dashboard/chat/page.js",
+  "/dashboard/progress/page": "app/dashboard/progress/page.js",
+  "/dashboard/video-call/page": "app/dashboard/video-call/page.js"
 }

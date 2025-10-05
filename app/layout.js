@@ -1,3 +1,5 @@
+// app/layout.js
+import { AuthProvider } from '../hooks/useAuth';
 import './globals.css'
 
 export const metadata = {
@@ -9,7 +11,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
