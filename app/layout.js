@@ -3,7 +3,7 @@ import { AuthProvider } from '../hooks/useAuth';
 import './globals.css'
 
 export const metadata = {
-  title: 'StorySpire - Learn English the Fun Way',
+  title: 'Saarthi - Learn English the Fun Way',
   description: 'Chat, Call, Play & Speak confidently with AI',
 }
 

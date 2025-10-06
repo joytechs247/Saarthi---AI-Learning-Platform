@@ -17,78 +17,145 @@ export default function VideoCallPage() {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [points, setPoints] = useState(0);
   const [analytics, setAnalytics] = useState(null);
-  
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [femaleVoice, setFemaleVoice] = useState(null);
+
   const conversationEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const userVideoRef = useRef(null);
   const streamRef = useRef(null);
   const speechSynthesisRef = useRef(null);
 
+  // Lady video reference and state
+  const ladyVideoRef = useRef(null);
+  const [ladyVideoLoaded, setLadyVideoLoaded] = useState(false);
+
   const topics = [
-    { 
-      id: 'daily-life', 
-      name: 'Daily Life & Routine', 
+    {
+      id: 'daily-life',
+      name: 'Daily Life & Routine',
       description: 'Talk about your everyday activities',
       starter: "So, tell me about your typical day. What time do you usually wake up?"
     },
-    { 
-      id: 'travel', 
-      name: 'Travel & Vacation', 
+    {
+      id: 'travel',
+      name: 'Travel & Vacation',
       description: 'Discuss travel experiences and plans',
       starter: "I love talking about travel! Have you been on any interesting trips recently?"
     },
-    { 
-      id: 'food', 
-      name: 'Food & Cooking', 
+    {
+      id: 'food',
+      name: 'Food & Cooking',
       description: 'Share about food preferences and recipes',
       starter: "Indian food is so diverse! What's your favorite dish to cook or eat?"
     },
-    { 
-      id: 'hobbies', 
-      name: 'Hobbies & Interests', 
+    {
+      id: 'hobbies',
+      name: 'Hobbies & Interests',
       description: 'Talk about your favorite activities',
       starter: "Everyone needs hobbies to relax. What do you enjoy doing in your free time?"
     },
-    { 
-      id: 'work', 
-      name: 'Work & Career', 
+    {
+      id: 'work',
+      name: 'Work & Career',
       description: 'Discuss professional life and goals',
       starter: "Work takes up so much of our time. What do you do for a living?"
     },
-    { 
-      id: 'culture', 
-      name: 'Culture & Traditions', 
+    {
+      id: 'culture',
+      name: 'Culture & Traditions',
       description: 'Share cultural experiences',
       starter: "Indian culture is so rich and varied. What traditions are important in your family?"
     },
-    { 
-      id: 'current-events', 
-      name: 'Current Events', 
+    {
+      id: 'current-events',
+      name: 'Current Events',
       description: 'Discuss news and recent happenings',
       starter: "There's always something interesting happening. Have you followed any news lately?"
     },
-    { 
-      id: 'movies-music', 
-      name: 'Movies & Music', 
+    {
+      id: 'movies-music',
+      name: 'Movies & Music',
       description: 'Talk about entertainment preferences',
       starter: "Bollywood or Hollywood? I'm curious about your taste in movies and music!"
     }
   ];
 
-  // Initialize speech recognition and camera
+  // Only speaking video and idle image
+  const ladyVideo = '/videos/ai-lady-speaking.mp4';
+  const ladyIdleImage = '/images/ai-lady-poster.jpg';
+
+  // Initialize voices - FIXED
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+      
+      // Find female voice - FIXED LOGIC
+      const foundFemaleVoice = voices.find(voice => 
+        voice.name.toLowerCase().includes('female') ||
+        voice.name.toLowerCase().includes('woman') ||
+        voice.name.toLowerCase().includes('samantha') ||
+        voice.name.toLowerCase().includes('karen') ||
+        voice.name.toLowerCase().includes('veena') ||
+        voice.name.toLowerCase().includes('tessa') ||
+        voice.name.toLowerCase().includes('zira') ||
+        voice.name.toLowerCase().includes('victoria') ||
+        voice.name.toLowerCase().includes('google uk english female') ||
+        voice.name.toLowerCase().includes('microsoft zira') ||
+        voice.name.toLowerCase().includes('ms zira') ||
+        (voice.lang.includes('IN') && !voice.name.toLowerCase().includes('male'))
+      );
+
+      if (foundFemaleVoice) {
+        console.log('Found female voice:', foundFemaleVoice.name);
+        setFemaleVoice(foundFemaleVoice);
+      } else {
+        console.log('No female voice found. Available voices:', voices.map(v => v.name));
+        // Try to use any non-male voice
+        const nonMaleVoice = voices.find(voice => 
+          !voice.name.toLowerCase().includes('male') && 
+          !voice.name.toLowerCase().includes('david') &&
+          !voice.name.toLowerCase().includes('alex')
+        );
+        if (nonMaleVoice) {
+          console.log('Using non-male voice:', nonMaleVoice.name);
+          setFemaleVoice(nonMaleVoice);
+        }
+      }
+    };
+
+    // Load voices immediately and when they change
+    loadVoices();
+    
+    // Some browsers need this event listener
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    return () => {
+      if (window.speechSynthesis.onvoiceschanged) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
+  // Initialize speech recognition, camera, and lady video
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Speech Recognition
       if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognitionRef.current = new SpeechRecognition();
-        
+
         recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = 'en-IN'; // Indian English
+        recognitionRef.current.lang = 'en-IN';
 
         recognitionRef.current.onstart = () => {
           setIsListening(true);
+          // Show idle image when user starts speaking
+          resetLadyVideoToIdle();
         };
 
         recognitionRef.current.onresult = async (event) => {
@@ -112,6 +179,11 @@ export default function VideoCallPage() {
       if (isCallActive && isVideoOn) {
         initializeCamera();
       }
+
+      // Initialize lady video when call starts
+      if (isCallActive && ladyVideoRef.current) {
+        initializeLadyVideo();
+      }
     }
 
     return () => {
@@ -124,6 +196,9 @@ export default function VideoCallPage() {
       if (speechSynthesisRef.current) {
         window.speechSynthesis.cancel();
       }
+      if (ladyVideoRef.current) {
+        ladyVideoRef.current.pause();
+      }
     };
   }, [isCallActive, isVideoOn]);
 
@@ -132,11 +207,48 @@ export default function VideoCallPage() {
     conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
 
+  const initializeLadyVideo = () => {
+    if (ladyVideoRef.current) {
+      // Start with the idle image as poster - don't load video initially
+      ladyVideoRef.current.poster = ladyIdleImage;
+      ladyVideoRef.current.muted = true;
+      ladyVideoRef.current.playsInline = true;
+      
+      // Clear any video source initially to show only the image
+      ladyVideoRef.current.src = '';
+      ladyVideoRef.current.load();
+      
+      setLadyVideoLoaded(true);
+    }
+  };
+
+  const playLadySpeakingVideo = () => {
+    if (ladyVideoRef.current) {
+      console.log('Playing lady speaking video');
+      ladyVideoRef.current.src = ladyVideo;
+      ladyVideoRef.current.loop = true;
+      ladyVideoRef.current.currentTime = 0;
+      ladyVideoRef.current.play().catch(error => {
+        console.error('Error playing speaking video:', error);
+      });
+    }
+  };
+
+  const resetLadyVideoToIdle = () => {
+    if (ladyVideoRef.current) {
+      console.log('Resetting to idle image');
+      ladyVideoRef.current.pause();
+      ladyVideoRef.current.src = ''; // Clear the video source
+      ladyVideoRef.current.poster = ladyIdleImage; // Show the idle image
+      ladyVideoRef.current.load(); // Reset the video element
+    }
+  };
+
   const initializeCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
       });
       streamRef.current = stream;
       if (userVideoRef.current) {
@@ -155,7 +267,7 @@ export default function VideoCallPage() {
 
     setIsCallActive(true);
     await initializeCamera();
-    
+
     // AI starts the conversation
     await aiSpeakFirst();
   };
@@ -172,36 +284,60 @@ export default function VideoCallPage() {
 
     setConversation([aiMessage]);
 
-    // AI speaks the message
+    // AI speaks the message with lady video
     await speakAIMessage(aiFirstMessage);
   };
 
   const speakAIMessage = async (message) => {
     return new Promise((resolve) => {
       setIsAISpeaking(true);
+
+      // Start lady speaking video
+      playLadySpeakingVideo();
+
       try {
-        // Using Web Speech API for TTS with Indian English accent
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+
         const speech = new SpeechSynthesisUtterance(message);
-        speech.lang = 'en-IN'; // Indian English
-        speech.rate = 0.9; // Slightly slower for clarity
-        speech.pitch = 1;
+        speech.lang = 'en-IN';
+
+        // Use the pre-loaded female voice - FIXED
+        if (femaleVoice) {
+          speech.voice = femaleVoice;
+          console.log('Using female voice:', femaleVoice.name);
+        } else {
+          console.log('No female voice available, using default');
+        }
+
+        speech.rate = 0.9;
+        speech.pitch = 1.3; // Higher pitch for more feminine voice
         speech.volume = 1;
-        
+
         speech.onend = () => {
+          console.log('AI speech ended');
           setIsAISpeaking(false);
+          resetLadyVideoToIdle();
           resolve();
         };
-        
-        speech.onerror = () => {
+
+        speech.onerror = (error) => {
+          console.error('AI speech error:', error);
           setIsAISpeaking(false);
+          resetLadyVideoToIdle();
           resolve();
         };
-        
-        window.speechSynthesis.speak(speech);
-        speechSynthesisRef.current = speech;
+
+        // Add a small delay to ensure video starts
+        setTimeout(() => {
+          window.speechSynthesis.speak(speech);
+          speechSynthesisRef.current = speech;
+        }, 300);
+
       } catch (error) {
         console.error('TTS error:', error);
         setIsAISpeaking(false);
+        resetLadyVideoToIdle();
         resolve();
       }
     });
@@ -222,6 +358,9 @@ export default function VideoCallPage() {
     const newPoints = points + 15;
     setPoints(newPoints);
 
+    // Ensure idle image is shown while processing user speech
+    resetLadyVideoToIdle();
+
     // AI responds to user's speech
     setTimeout(async () => {
       await aiRespond(userSpeech);
@@ -231,7 +370,7 @@ export default function VideoCallPage() {
   const aiRespond = async (userSpeech) => {
     try {
       const aiResponse = await generateAIResponse(userSpeech, selectedTopic);
-      
+
       const aiMessage = {
         speaker: 'ai',
         text: aiResponse,
@@ -239,15 +378,15 @@ export default function VideoCallPage() {
       };
 
       setConversation(prev => [...prev, aiMessage]);
-      
-      // AI speaks the response
+
+      // AI speaks the response with lady video
       await speakAIMessage(aiResponse);
-      
+
       // After AI speaks, enable user to respond again
       setTimeout(() => {
         setIsRecording(false);
       }, 1000);
-      
+
     } catch (error) {
       console.error('AI response failed:', error);
       // Fallback response
@@ -257,10 +396,10 @@ export default function VideoCallPage() {
         timestamp: new Date()
       };
       setConversation(prev => [...prev, fallbackMessage]);
-      
+
       // Speak fallback message
       await speakAIMessage(fallbackMessage.text);
-      
+
       setIsRecording(true);
     }
   };
@@ -268,24 +407,23 @@ export default function VideoCallPage() {
   const generateAIResponse = async (userMessage, topic) => {
     try {
       const prompt = `
-        You are an AI English tutor having a video call conversation with an Indian user. 
-        You speak in natural Indian English with a friendly, conversational tone.
+        You are a friendly female AI English tutor having a video call conversation. 
+        Speak in simple, clear English with a warm and encouraging tone.
         
         Current topic: ${topic}
         User just said: "${userMessage}"
         
-        Previous conversation context: ${JSON.stringify(conversation.slice(-3))}
+        Previous conversation: ${JSON.stringify(conversation.slice(-3))}
         
-        Respond naturally as if you're having a real video call:
-        - Use Indian English phrases and expressions
+        Respond naturally:
         - Be warm, friendly and encouraging
-        - Ask follow-up questions to keep conversation flowing
-        - Show genuine interest in what the user is saying
-        - Keep responses conversational (2-3 sentences)
-        - Use phrases like "That's wonderful!", "I see what you mean", "Tell me more about that"
-        - Avoid formal language, be casual and relatable
+        - Ask follow-up questions
+        - Keep responses short (2-3 sentences)
+        - Use phrases like "That's wonderful!", "Tell me more"
+        - Add encouragement like "You're doing great!"
+        - Be casual and relatable
         
-        Return only your response text, nothing else.
+        Return only your response text.
       `;
 
       const response = await fetch('/api/gemini/chat', {
@@ -301,15 +439,18 @@ export default function VideoCallPage() {
 
       const data = await response.json();
       return data.response.trim();
-      
+
     } catch (error) {
       console.error('AI response error:', error);
-      return "That's really interesting! Could you please elaborate a bit more?";
+      return "That's really interesting! Could you please tell me more about that?";
     }
   };
 
   const startRecording = () => {
     if (recognitionRef.current && !isAISpeaking) {
+      // Show idle image when starting to record
+      resetLadyVideoToIdle();
+      
       recognitionRef.current.lang = 'en-IN';
       recognitionRef.current.start();
       setIsRecording(true);
@@ -336,13 +477,16 @@ export default function VideoCallPage() {
     if (speechSynthesisRef.current) {
       window.speechSynthesis.cancel();
     }
-    
+    if (ladyVideoRef.current) {
+      ladyVideoRef.current.pause();
+    }
+
     setIsCallActive(false);
-    
+
     // Calculate analytics
     const totalMessages = conversation.length;
     const userMessages = conversation.filter(msg => msg.speaker === 'user').length;
-    const duration = conversation.length > 0 ? 
+    const duration = conversation.length > 0 ?
       (new Date() - conversation[0].timestamp) / 1000 : 0;
 
     const conversationAnalytics = {
@@ -369,10 +513,10 @@ export default function VideoCallPage() {
   };
 
   const downloadTranscript = () => {
-    const transcript = conversation.map(msg => 
+    const transcript = conversation.map(msg =>
       `${msg.speaker.toUpperCase()}: ${msg.text}\n[${msg.timestamp.toLocaleTimeString()}]\n`
     ).join('\n');
-    
+
     const blob = new Blob([transcript], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -404,15 +548,15 @@ export default function VideoCallPage() {
 
   return (
     <RouteGuard>
-      <div className="h-full flex flex-col space-y-6 p-6">
+      <div className="min-h-screen flex flex-col space-y-6 p-6 bg-gray-50">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Video Call Practice</h1>
-          <p className="text-gray-600">Face-to-face practice with AI tutor in Indian English</p>
+          <p className="text-gray-600">Face-to-face practice with AI tutor</p>
         </div>
 
         {!isCallActive && !analytics && (
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-6 flex-1">
             {/* Topic Selection */}
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Choose a Conversation Topic</h2>
@@ -421,11 +565,10 @@ export default function VideoCallPage() {
                   <button
                     key={topic.id}
                     onClick={() => setSelectedTopic(topic.id)}
-                    className={`p-4 rounded-xl border-2 text-left transition ${
-                      selectedTopic === topic.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300'
-                    }`}
+                    className={`p-4 rounded-xl border-2 text-left transition ${selectedTopic === topic.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                      }`}
                   >
                     <h3 className="font-semibold text-gray-800">{topic.name}</h3>
                     <p className="text-sm text-gray-600 mt-1">{topic.description}</p>
@@ -447,7 +590,7 @@ export default function VideoCallPage() {
                     <p className="text-green-700 text-sm">Choose what you want to talk about</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl">
                   <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mt-1">
                     2
@@ -457,7 +600,7 @@ export default function VideoCallPage() {
                     <p className="text-blue-700 text-sm">AI tutor will start speaking first</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-4 p-4 bg-purple-50 rounded-xl">
                   <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm mt-1">
                     3
@@ -484,7 +627,7 @@ export default function VideoCallPage() {
         {isCallActive && (
           <div className="flex-1 flex flex-col">
             {/* Video Call Interface */}
-            <div className="flex-1 bg-gray-900 rounded-2xl overflow-hidden relative">
+            <div className="flex-1 bg-gray-900 rounded-2xl overflow-hidden relative min-h-[600px]">
               <div className="grid grid-cols-1 lg:grid-cols-2 h-full gap-4 p-4">
                 {/* User Video */}
                 <div className="bg-black rounded-2xl overflow-hidden relative">
@@ -511,31 +654,38 @@ export default function VideoCallPage() {
                   </div>
                 </div>
 
-                {/* AI Avatar */}
+                {/* AI Avatar with Lady Video/Image */}
                 <div className="bg-black rounded-2xl overflow-hidden relative">
-                  <div className="w-full h-full bg-gradient-to-br from-green-900 to-blue-900 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <div className={`w-24 h-24 ${isAISpeaking ? 'bg-green-400' : 'bg-white/30'} rounded-full flex items-center justify-center transition-all duration-300`}>
-                          <span className="text-2xl font-bold">AI</span>
-                        </div>
-                      </div>
-                      <p className="text-xl font-semibold">AI Tutor</p>
-                      <p className="text-white/60 mt-2">Speaking Indian English</p>
-                      {isAISpeaking && (
-                        <p className="text-green-400 text-sm mt-2 animate-pulse">
-                          Speaking...
-                        </p>
-                      )}
-                      {!isAISpeaking && !isRecording && (
-                        <p className="text-yellow-400 text-sm mt-2">
-                          Waiting for your response...
-                        </p>
-                      )}
-                    </div>
+                  {/* Use img tag for idle state, video tag only when speaking */}
+                  {!isAISpeaking ? (
+                    <img
+                      src={ladyIdleImage}
+                      alt="AI Tutor"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <video
+                      ref={ladyVideoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      loop
+                      className="w-full h-full object-cover"
+                    >
+                      <source src={ladyVideo} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
+
+                  <div className="absolute top-4 left-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                    👩‍🏫 AI Tutor {isAISpeaking && "🗣️"}
                   </div>
-                  <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm">
-                    AI Tutor {isAISpeaking && "🗣️"}
+
+                  {/* Status overlay */}
+                  <div className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white px-4 py-2 rounded-full text-sm font-medium ${isAISpeaking ? 'bg-green-500' : 'bg-blue-500'
+                    }`}>
+                    {isAISpeaking ? "Speaking..." : 
+                     isListening ? "Listening to you..." : "Ready to listen"}
                   </div>
                 </div>
               </div>
@@ -546,25 +696,23 @@ export default function VideoCallPage() {
               </div>
 
               {/* Call Controls */}
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4">
+              <div className="absolute  left-1/2 transform -translate-x-1/2 flex gap-4">
                 <button
                   onClick={toggleVideo}
-                  className={`p-4 rounded-2xl transition ${
-                    isVideoOn 
-                      ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-                      : 'bg-red-500 hover:bg-red-600 text-white'
-                  }`}
+                  className={`p-4 rounded-2xl transition ${isVideoOn
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
                 >
                   {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
                 </button>
-                
+
                 <button
                   onClick={toggleAudio}
-                  className={`p-4 rounded-2xl transition ${
-                    isAudioOn 
-                      ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-                      : 'bg-red-500 hover:bg-red-600 text-white'
-                  }`}
+                  className={`p-4 rounded-2xl transition ${isAudioOn
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
                 >
                   {isAudioOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
                 </button>
@@ -595,14 +743,6 @@ export default function VideoCallPage() {
                   <Square className="w-6 h-6" />
                 </button>
               </div>
-
-              {/* Status Indicator */}
-              <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm">
-                {isAISpeaking ? "AI is speaking..." : 
-                 isListening ? "Listening to you..." : 
-                 isRecording ? "Ready for your response" : 
-                 "Waiting..."}
-              </div>
             </div>
           </div>
         )}
@@ -617,21 +757,19 @@ export default function VideoCallPage() {
               <p className="text-gray-600">Excellent conversation practice!</p>
             </div>
 
-            {/* Conversation Transcript (Visible only after call ends) */}
+            {/* Conversation Transcript */}
             <div className="mb-6 bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto">
               <h3 className="font-semibold text-gray-800 mb-3">Conversation Transcript</h3>
               <div className="space-y-3">
                 {conversation.map((msg, index) => (
                   <div
                     key={index}
-                    className={`p-3 rounded-lg ${
-                      msg.speaker === 'ai' ? 'bg-blue-100 border border-blue-200' : 'bg-green-100 border border-green-200'
-                    }`}
+                    className={`p-3 rounded-lg ${msg.speaker === 'ai' ? 'bg-blue-100 border border-blue-200' : 'bg-green-100 border border-green-200'
+                      }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        msg.speaker === 'ai' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
-                      }`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${msg.speaker === 'ai' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
+                        }`}>
                         {msg.speaker === 'ai' ? 'AI' : 'You'}
                       </div>
                       <div className="flex-1">
