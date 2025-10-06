@@ -596,9 +596,9 @@ export default function ChatPage() {
               {/* Input Area */}
               <div className="border-t border-gray-200 p-4 bg-white">
                 <div className="flex gap-2">
-                  <button className="p-3 bg-gray-100 border border-gray-300 rounded-xl hover:bg-gray-200 transition shadow-sm">
+                  {/* <button className="p-3 bg-gray-100 border border-gray-300 rounded-xl hover:bg-gray-200 transition shadow-sm">
                     <Mic className="w-5 h-5 text-gray-600" />
-                  </button>
+                  </button> */}
                   <input
                     type="text"
                     value={inputMessage}
