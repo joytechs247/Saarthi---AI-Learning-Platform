@@ -1,7 +1,7 @@
 // hooks/useAuth.js
 'use client';
 import { useState, useEffect, createContext, useContext } from 'react';
-import { 
+import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
@@ -25,13 +25,13 @@ export function AuthProvider({ children }) {
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
-        
+
         // Set up Firebase auth listener
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
           if (firebaseUser) {
             // Get additional user data from Firestore
             const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            
+
             if (userDoc.exists()) {
               const userData = userDoc.data();
               const fullUserData = {
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
                 displayName: firebaseUser.displayName,
                 ...userData
               };
-              
+
               setUser(fullUserData);
               localStorage.setItem('user', JSON.stringify(fullUserData));
             } else {
@@ -61,16 +61,16 @@ export function AuthProvider({ children }) {
                   conversationsCompleted: 0
                 }
               };
-              
+
               await setDoc(doc(db, 'users', firebaseUser.uid), userData);
-              
+
               const fullUserData = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 displayName: firebaseUser.displayName,
                 ...userData
               };
-              
+
               setUser(fullUserData);
               localStorage.setItem('user', JSON.stringify(fullUserData));
             }
@@ -95,7 +95,7 @@ export function AuthProvider({ children }) {
   const signup = async (email, password, userData) => {
     try {
       const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
-      
+
       // Update profile
       await updateProfile(firebaseUser, {
         displayName: userData.name
@@ -128,7 +128,7 @@ export function AuthProvider({ children }) {
         displayName: userData.name,
         ...userDocData
       };
-      
+
       setUser(fullUserData);
       localStorage.setItem('user', JSON.stringify(fullUserData));
 
@@ -142,18 +142,18 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const { user: firebaseUser } = await signInWithEmailAndPassword(auth, email, password);
-      
+
       // Get user data from Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       const userData = userDoc.data();
-      
+
       const fullUserData = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         ...userData
       };
-      
+
       setUser(fullUserData);
       localStorage.setItem('user', JSON.stringify(fullUserData));
 
@@ -177,10 +177,10 @@ export function AuthProvider({ children }) {
 
   const updateUserStats = async (updates) => {
     if (!user) return;
-    
+
     try {
       await updateDoc(doc(db, 'users', user.uid), updates);
-      
+
       // Update local storage
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
