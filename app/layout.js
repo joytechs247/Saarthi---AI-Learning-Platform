@@ -5,6 +5,10 @@ import './globals.css'
 export const metadata = {
   title: 'Saarthi - Learn English the Fun Way',
   description: 'Chat, Call, Play & Speak confidently with AI',
+    icons: {
+    icon: '/favicon.ico', // Main favicon
+    
+  },
 }
 
 export default function RootLayout({ children }) {
