@@ -82,8 +82,8 @@ export default function VideoCallPage() {
   ];
 
   // Only speaking video and idle image
-  const ladyVideo = '/videos/ai-lady-speaking.mp4';
-  const ladyIdleImage = '/images/ai-lady-poster.jpg';
+  const ladyVideo = '/videos/ai-man-speaking.mp4';
+  const ladyIdleImage = '/images/ai-man-poster.jpg';
 
   // Initialize voices - FIXED
   useEffect(() => {
